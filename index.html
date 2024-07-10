@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en" dir="rtl">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>New ESRI's Service</title>
+  <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/light/main.css" />
+  <link rel="stylesheet" href="style.css" />
+
+  <link rel="stylesheet" href="spinkit.css">
+
+  <script src="https://js.arcgis.com/4.29/"></script>
+  <script type="module" src="https://js.arcgis.com/calcite-components/2.5.1/calcite.esm.js"></script>
+  <link rel="stylesheet" type="text/css" href="https://js.arcgis.com/calcite-components/2.5.1/calcite.css" />
+
+
+</head>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    setTimeout(function () {
+      var preloader = document.getElementById('preloader');
+      if (preloader) {
+        preloader.style.display = 'none';
+      }
+    }, 1000); // 5000 milliseconds = 5 seconds
+  });
+</script>
+
+
+<body>
+  <!-- Preloader -->
+  <div id="preloader">
+    <div class="sk-cube-grid">
+      <div class="sk-cube sk-cube1"></div>
+      <div class="sk-cube sk-cube2"></div>
+      <div class="sk-cube sk-cube3"></div>
+      <div class="sk-cube sk-cube4"></div>
+      <div class="sk-cube sk-cube5"></div>
+      <div class="sk-cube sk-cube6"></div>
+      <div class="sk-cube sk-cube7"></div>
+      <div class="sk-cube sk-cube8"></div>
+      <div class="sk-cube sk-cube9"></div>
+    </div>
+  </div>
+
+
+  <div id="displayMap">
+  </div>
+
+  <!-- <div id="infoDiv" class="esri-widget panel-side011">
+
+    <label for="bufferNum">Set a geometry buffer size:</label>
+    <div id="bufferNum"></div>
+
+    <calcite-input-number id="iiin" min="0" scale="l" alignment="end" required clearable group-separator icon="analysis" integer
+        number-button-type="vertical" placeholder="0" scale="l" status="idle" step="any"
+        suffix-text="المسافة (الكيلومتر)" validation-icon validation-message="تم انشاء الحرم المكانى">
+    </calcite-input-number>
+
+
+    <br /><br />
+    <button class="esri-button" id="showFilter" type="button">
+      Show Results
+    </button>
+    <button class="esri-button" id="clearFilter" type="button">
+      Clear filter
+    </button>
+  </div> -->
+
+  <calcite-action id="toggle-button" text="اغلق قائمة الظاهرات" title="افتح قائمة الظاهرات" icon="chevrons-left"
+    scale="s">
+  </calcite-action>
+
+  <calcite-action id="toggleService-button" text="اغلاق" title="الخدمات الحالية" icon="chevrons-left" scale="s">
+  </calcite-action>
+
+
+
+
+
+
+  <calcite-panel class="panel-side" id="result-panel">
+    <div slot="header-content" scale="s">
+      <h3 class="heading">التجمعات العمرانية حسب عدد السكان من الاعلى الى الادنى</h3>
+      <!-- <p>إرجاع 20 تجمع عمراني فى وقت واحد</p> -->
+      <p></p>
+    </div>
+
+
+    <calcite-dropdown width="m" type="hover">
+      <calcite-button slot="trigger" style="width: 100%;">اختر التجمع العمراني</calcite-button>
+      <calcite-dropdown-group group-title="التجمعات العمرانية">
+        <!-- <calcite-dropdown-item>التجمعات العمرانية</calcite-dropdown-item> -->
+        <!-- <calcite-dropdown-item>River</calcite-dropdown-item>
+          <calcite-dropdown-item>Waterfall</calcite-dropdown-item>
+          <calcite-dropdown-item>Rainforest</calcite-dropdown-item>
+          <calcite-dropdown-item>Tundra</calcite-dropdown-item>
+          <calcite-dropdown-item>Desert</calcite-dropdown-item> -->
+
+
+
+
+        <calcite-panel id="resultsDiv">
+          <!-- <calcite-pick-list id="incomeList"></calcite-pick-list> -->
+
+          <calcite-list id="incomeList" filter-enabled filter-placeholder="اكتب اسم التجمع العمراني...">
+            <!-- <calcite-list-item label="Hiking trails" description="Designated routes for hikers to use." value="hiking-trails">
+              <calcite-action slot="actions-end" icon="layer" text="Trails layer"></calcite-action>
+          </calcite-list-item>
+          <calcite-list-item label="Waterfalls" description="Vertical drops from a river." value="waterfalls">
+              <calcite-action slot="actions-end" icon="layer" text="Waterfalls layer"></calcite-action>
+          </calcite-list-item>
+          <calcite-list-item label="Rivers" description="Large naturally flowing watercourses." value="rivers">
+              <calcite-action slot="actions-end" icon="layer" text="Rivers layer"></calcite-action>
+          </calcite-list-item>
+          <calcite-list-item label="Estuaries" description="Where the river meets the sea." value="estuaries">
+              <calcite-action slot="actions-end" icon="layer" text="Estuaries layer"></calcite-action>
+          </calcite-list-item> -->
+          </calcite-list>
+        </calcite-panel>
+      </calcite-dropdown-group>
+    </calcite-dropdown>
+
+    <br /><br />
+    <calcite-input-number id="iiin" min="0" scale="l" alignment="end" required clearable group-separator icon="analysis"
+      integer number-button-type="vertical" placeholder="0" scale="l" status="idle" step="any"
+      suffix-text="متر"
+      >
+      <!-- validation-icon validation-message="تم انشاء الحرم المكانى" -->
+    </calcite-input-number>
+
+
+    <br /><br />
+    <calcite-button  id="showFilter" type="button">
+      تحليل
+    </calcite-button>
+
+
+    <!-- <div slot="footer">
+      <calcite-pagination id="tablePager" start-item="1" page-size="20"></calcite-pagination>
+    </div> -->
+
+
+
+    <br /><br />
+
+    <calcite-panel class="contents">
+      <calcite-flow id="flow">
+        <calcite-flow-item>
+          <calcite-list id="results">
+            <calcite-notice open>
+              <div slot="message">
+                Click on the map to search for nearby places
+              </div>
+            </calcite-notice>
+          </calcite-list>
+        </calcite-flow-item>
+      </calcite-flow>
+    </calcite-panel>
+
+  </calcite-panel>
+
+
+
+
+
+
+
+
+
+
+  <script type="module" src="script.js"></script>
+</body>
+
+</html>
