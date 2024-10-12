@@ -42,7 +42,7 @@ async function initializeMapPlannersWithNewFeatures(randomGeoJSON) {
 
     intl.setLocale("ar");
     esriConfig.apiKey =
-      "AAPKd0a4217e82944515a7f3df52cb9d578cg-xi22yCw4m8d85NYxlC4d7q_58JlYYlu0c2GBPsXinGmbvN1wB5-86rp39u1qWn";
+      "AAPK756f006de03e44d28710cb446c8dedb4rkQyhmzX6upFiYPzQT0HNQNMJ5qPyO1TnPDSPXT4EAM_DlQSj20ShRD7vyKa7a1H";
 
     displayMap = new Map({
       // basemap: "dark-gray-vector",
