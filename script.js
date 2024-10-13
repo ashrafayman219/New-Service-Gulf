@@ -1,17 +1,30 @@
-let planselect, planselect2, planselect3;
-let inputVal, buttonQuery, comparisonOperators;
-
 // display variables
 var displayMap;
-var view;
-var gL;
-
-// New
-let geojsons = [];
-let featureLayer;
-
-var featureLayers = [];
-console.log(featureLayers, "featureLayers global");
+let view;
+let sketchVal;
+let servicesLayer;
+let placePoint01;
+let pointGraphic;
+let bufferGraphic;
+let featureFilter;
+let featureLayers = [];
+let geojsons = [
+  {
+    regionsURL:
+      "https://raw.githubusercontent.com/ashrafayman219/New-ESRI-s-Service/main/UpdatedG.json",
+    title: "المحافظات",
+  },
+  {
+    regionsURL:
+      "https://raw.githubusercontent.com/ashrafayman219/New-ESRI-s-Service/main/Urban.json",
+    title: "التجمعات العمرانية",
+  },
+  {
+    regionsURL:
+      "https://raw.githubusercontent.com/ashrafayman219/New-ESRI-s-Service/main/Services.json",
+    title: "الخدمات",
+  },
+];
 
 function loadModule(moduleName) {
   return new Promise((resolve, reject) => {
@@ -27,365 +40,990 @@ function loadModule(moduleName) {
   });
 }
 
-async function initializeMapPlannersWithNewFeatures(randomGeoJSON) {
+async function initializeMapNewService() {
   try {
-    const [esriConfig, WebScene, Map, MapView, Popup, SceneView, intl] =
-      await Promise.all([
-        loadModule("esri/config"),
-        loadModule("esri/WebScene"),
-        loadModule("esri/Map"),
-        loadModule("esri/views/MapView"),
-        loadModule("esri/widgets/Popup"),
-        loadModule("esri/views/SceneView"),
-        loadModule("esri/intl"),
-      ]);
+    const [
+      esriConfig,
+      intl,
+      Map,
+      MapView,
+      FeatureLayer,
+      Legend,
+      GeoJSONLayer,
+      Query,
+      reactiveUtils,
+      FeatureTable,
+      Graphic,
+      GraphicsLayer,
+      Slider,
+      FeatureFilter,
+      geometryEngine,
+      geodesicUtils,
+      Point,
+    ] = await Promise.all([
+      loadModule("esri/config"),
+      loadModule("esri/intl"),
+      loadModule("esri/Map"),
+      loadModule("esri/views/MapView"),
+      loadModule("esri/layers/FeatureLayer"),
+      loadModule("esri/widgets/Legend"),
+      loadModule("esri/layers/GeoJSONLayer"),
+      loadModule("esri/rest/support/Query"),
+      loadModule("esri/core/reactiveUtils"),
+      loadModule("esri/widgets/FeatureTable"),
+      loadModule("esri/Graphic"),
+      loadModule("esri/layers/GraphicsLayer"),
+      loadModule("esri/widgets/Slider"),
+      loadModule("esri/layers/support/FeatureFilter"),
+      loadModule("esri/geometry/geometryEngine"),
+      loadModule("esri/geometry/support/geodesicUtils"),
+      loadModule("esri/geometry/Point"),
+    ]);
 
     intl.setLocale("ar");
     esriConfig.apiKey =
-      "AAPK756f006de03e44d28710cb446c8dedb4rkQyhmzX6upFiYPzQT0HNQNMJ5qPyO1TnPDSPXT4EAM_DlQSj20ShRD7vyKa7a1H";
+      "AAPK67a9b2041fcc449d90ab91d6bae4a156HTaBtzlYSKLe8L-zBuIgrSGvxOopzVQEtdwVrlp6RKN9Rrq_y2qkTax7Do1cHqm9"; // Will change it
+
+    const template = {
+      // autocasts as new PopupTemplate()
+      title: "{GName}",
+      content: [
+        {
+          type: "fields",
+          fieldInfos: [
+            {
+              fieldName: "OBJECTID",
+              label: "رقم المسلسل",
+            },
+            {
+              fieldName: "GName",
+              label: "اسم المحافظة",
+            },
+            {
+              fieldName: "Shape_Length",
+              label: "المحيط",
+            },
+            {
+              fieldName: "Shape_Area",
+              label: "المساحة التقريبية",
+            },
+          ],
+        },
+      ],
+    };
+
+    const urbanTemplate = {
+      // autocasts as new PopupTemplate()
+      title: "{وصف}",
+      content: [
+        {
+          type: "fields",
+          fieldInfos: [
+            {
+              fieldName: "البلدية",
+              label: "البلدية",
+            },
+            {
+              fieldName: "التجمع_العمراني",
+              label: "التجمع العمراني",
+            },
+            {
+              fieldName: "عدد_السكان",
+              label: "عدد السكان",
+            },
+            {
+              fieldName: "E",
+              label: "خط الطول",
+            },
+            {
+              fieldName: "N",
+              label: "خط العرض",
+            },
+          ],
+        },
+      ],
+    };
+
+    const servicesTemplate = {
+      // autocasts as new PopupTemplate()
+      title: "{الخدمة}",
+      content: [
+        {
+          type: "fields",
+          fieldInfos: [
+            {
+              fieldName: "المركز",
+              label: "المركز",
+            },
+            {
+              fieldName: "نوع_الخدمة",
+              label: "نوع الخدمة",
+            },
+            {
+              fieldName: "E",
+              label: "خط الطول",
+            },
+            {
+              fieldName: "N",
+              label: "خط العرض",
+            },
+          ],
+        },
+      ],
+    };
+
+    const rendererindustrialComplex = {
+      type: "simple",
+      symbol: {
+        type: "web-style",
+        name: "city-hall",
+        styleName: "Esri2DPointSymbolsStyle",
+      },
+    };
+
+    const sym1 = {
+      type: "web-style",
+      name: "gas-station",
+      styleName: "Esri2DPointSymbolsStyle",
+    };
+
+    const sym2 = {
+      type: "web-style",
+      name: "atm",
+      styleName: "Esri2DPointSymbolsStyle",
+    };
+
+    const sym3 = {
+      type: "web-style",
+      name: "grocery-store",
+      styleName: "Esri2DPointSymbolsStyle",
+    };
+
+    const sym4 = {
+      type: "web-style",
+      name: "university",
+      styleName: "Esri2DPointSymbolsStyle",
+    };
+
+    const sym5 = {
+      type: "web-style",
+      name: "place-of-worship",
+      styleName: "Esri2DPointSymbolsStyle",
+    };
+
+    const sym6 = {
+      type: "web-style",
+      name: "hospital",
+      styleName: "Esri2DPointSymbolsStyle",
+    };
+
+    const sym7 = {
+      type: "web-style",
+      name: "hotel",
+      styleName: "Esri2DPointSymbolsStyle",
+    };
+
+    const rendererServices = {
+      type: "unique-value",
+      // symbol: {
+      //   type: "web-style",
+      //   name: "landmark",
+      //   styleName: "Esri2DPointSymbolsStyle"
+      // },
+      field: "نوع_الخدمة",
+      label: "الخدمات المتاحة",
+      uniqueValueInfos: [
+        {
+          value: "الخدمات البترولية", // features labeled as "high"
+          symbol: sym1, // will be assigned sym1
+          label: "الخدمات البترولية",
+        },
+        {
+          value: "الخدمات البنكية", // features labeled as "medium"
+          symbol: sym2, // will be assigned sym2
+        },
+        {
+          value: "الخدمات التجارية", // features labeled as "low"
+          symbol: sym3, // will be assigned sym2
+        },
+        {
+          value: "الخدمات التعليمية", // features labeled as "low"
+          symbol: sym4, // will be assigned sym2
+        },
+        {
+          value: "الخدمات الدينية", // features labeled as "low"
+          symbol: sym5, // will be assigned sym2
+        },
+        {
+          value: "خدمات صحية", // features labeled as "low"
+          symbol: sym6, // will be assigned sym2
+        },
+        {
+          value: "خدمات فندقية", // features labeled as "low"
+          symbol: sym7, // will be assigned sym2
+        },
+      ],
+    };
+
+    async function createFeatureLayers(geojsons) {
+      const arrayFeatures = [];
+      for (const geojsonURL of geojsons) {
+        const geojsonLayer = new GeoJSONLayer({
+          url: geojsonURL.regionsURL,
+          title: geojsonURL.title,
+        });
+        await geojsonLayer.queryFeatures().then(function (results) {
+          console.log(results);
+          const featureLayer = new FeatureLayer({
+            source: results.features,
+            outFields: ["*"],
+            fields: results.fields,
+            objectIdField: results.fields[0].name,
+            geometryType: results.geometryType,
+            title: geojsonLayer.title,
+            // renderer: renderer,
+          });
+
+          arrayFeatures.push(featureLayer);
+        });
+        featureLayers = arrayFeatures;
+      }
+      return featureLayers;
+    }
 
     displayMap = new Map({
-      // basemap: "dark-gray-vector",
-      basemap: "gray-vector",
-      // layers: [layer],
+      basemap: "topo-vector",
     });
 
     view = new MapView({
-      // center: [31.233334, 30.033333], // longitude, latitude, centered on Egypt
-      center: [45.0792, 23.8859], // longitude, latitude, centered on SA
+      center: [45.0792, 23.8859], // longitude, latitude, centered on KSA
       container: "displayMap",
       map: displayMap,
-      zoom: 5,
+      zoom: 3,
+      constraints: {
+        minZoom: 8,
+      },
       highlightOptions: {
-        // color: [255, 255, 0, 1],
-        // haloOpacity: 0.9,
-        // fillOpacity: 0.2
         color: "#39ff14",
         haloOpacity: 0.9,
         fillOpacity: 0,
       },
-      popup: new Popup({
-        defaultPopupTemplateEnabled: true,
-      }),
-      // highlightOptions: {
-      //   color: [255, 241, 58],
-      //   fillOpacity: 0.4
-      // }
+      popup: {
+        dockEnabled: true,
+        dockOptions: {
+          // dock popup at bottom-right side of view
+          buttonEnabled: false,
+          breakpoint: false,
+          position: "bottom-left",
+        },
+      },
     });
+
+    const bufferLayer = new GraphicsLayer();
+    view.map.add(bufferLayer);
+
+    // create the layerView's to add the filter
+    let sceneLayerView = null;
+    let featureLayerView = null;
+
+    const bufferNumSlider = new Slider({
+      container: "bufferNum",
+      min: 0,
+      max: 1000,
+      steps: 1,
+      visibleElements: {
+        labels: true,
+      },
+      precision: 0,
+      labelFormatFunction: (value, type) => {
+        return `${value.toString()}m`;
+      },
+      values: [0],
+    });
+
+    // let bufferSize = 0;
+    // bufferNumSlider.on(["thumb-change", "thumb-drag"], bufferVariablesChanged);
+    // function bufferVariablesChanged(event) {
+    //   bufferSize = event.value;
+    //   updateFilter();
+    // }
+
+    let highlightSelect; // Feature selection highlight
+    let placesLayer = new GraphicsLayer({
+      // Layer for places features
+      id: "graphicsLayer",
+    });
+    displayMap.add(placesLayer);
+
+    const listNode = document.getElementById("incomeList");
+
+    await createFeatureLayers(geojsons).then((featureLayers) => {
+      console.log(featureLayers);
+      if (featureLayers) {
+        featureLayers.map((layer) => {
+          displayMap.add(layer);
+          if (layer.title === "المحافظات") {
+            layer.popupTemplate = template;
+            layer.visible = false;
+            // view.whenLayerView(layer).then(function (layerView) {
+            //   view.goTo(
+            //     {
+            //       target: layer.fullExtent,
+            //     },
+            //     {
+            //       duration: 2000,
+            //     }
+            //   );
+            // });
+          } else if (layer.title === "التجمعات العمرانية") {
+            layer.renderer = rendererindustrialComplex;
+            layer.popupTemplate = urbanTemplate;
+            // layer.visible = false;
+
+            let infoPanel; // Left panel for place information
+            const resultPanel01 = document.getElementById("results");
+            const flow = document.getElementById("flow");
+
+            //create graphic for mouse point click
+            pointGraphic = new Graphic({
+              symbol: {
+                type: "simple-marker", // autocasts as new SimpleMarkerSymbol()
+                color: [0, 0, 139, 0],
+                outline: {
+                  color: [255, 255, 255, 0],
+                  width: 0,
+                },
+              },
+            });
+
+            // Create graphic for distance buffer
+            bufferGraphic = new Graphic({
+              symbol: {
+                type: "simple-fill", // autocasts as new SimpleFillSymbol()
+                color: [173, 216, 120, 0.2],
+                outline: {
+                  // autocasts as new SimpleLineSymbol()
+                  color: [255, 255, 255],
+                  width: 1,
+                },
+              },
+            });
+
+            let graphics;
+            let start = 0;
+            let highlight;
+
+            view.whenLayerView(layer).then(async function (layerView) {
+              featureLayerView = layerView;
+              view.goTo(
+                {
+                  target: layer.fullExtent,
+                },
+                {
+                  duration: 2000,
+                }
+              );
+
+              const featureCount = await layer.queryFeatureCount();
+              // document
+              //   .getElementById("tablePager")
+              //   .setAttribute("total-items", featureCount);
+
+              // fetch the first twenty features that have the highest population number
+              queryPage(0);
+
+              function queryPage(page) {
+                const query = {
+                  start: page,
+                  num: featureCount,
+                  outFields: ["*"],
+                  returnGeometry: true,
+                  orderByFields: ["عدد_السكان DESC"],
+                };
+                const promise = layer
+                  .queryFeatures(query)
+                  .then((featureSet) =>
+                    convertFeatureSetToRows(featureSet, query)
+                  );
+              }
+
+              function convertFeatureSetToRows(featureSet, query) {
+                document.getElementById("incomeList").innerHTML = "";
+
+                graphics = featureSet.features;
+                graphics.forEach((result, index) => {
+                  // console.log(result, "result")
+                  const attributes = result.attributes;
+                  const name = attributes["التجمع_العمراني"];
+                  const des = `عدد السكان: ${attributes["عدد_السكان"]}`;
+
+                  // الوصف: ${attributes["وصف"]}
+                  // const popu = `عدد السكان: ${attributes["عدد_السكان"]}`;
+
+                  const item = document.createElement("calcite-list-item");
+                  item.setAttribute("label", name);
+                  item.setAttribute("value", index);
+                  item.setAttribute("description", des);
+                  // item.setAttribute("population", popu);
+                  item.addEventListener("click", onCountyClickHandler);
+                  document.getElementById("incomeList").appendChild(item);
+                });
+
+                if (highlight) {
+                  highlight.remove();
+                }
+                // highlight = layerView.highlight(featureSet.features);
+              }
+
+              // ***************************************************
+              // this function runs when user clicks on the county
+              // in the list shown on the right side of the app
+              // ***************************************************
+              function onCountyClickHandler(event) {
+                const target = event.target;
+                const resultId = target.getAttribute("value");
+                // get the graphic corresponding to the clicked zip code
+                const result =
+                  resultId && graphics && graphics[parseInt(resultId, 10)];
+                // console.log(result, "result")
+                if (result) {
+                  view
+                    .goTo(
+                      {
+                        target: result.geometry,
+                        zoom: 15,
+                      },
+                      {
+                        duration: 600,
+                      }
+                    )
+                    .then(() => {
+                      view.openPopup({
+                        features: [result],
+                        location: result.geometry.centroid,
+                      });
+
+                      let bufferSize = 0;
+                      // bufferNumSlider.on(
+                      //   ["thumb-change", "thumb-drag"],
+                      //   bufferVariablesChanged
+                      // );
+                      var inputval = document.getElementById("iiin");
+                      document
+                        .getElementById("showFilter")
+                        .addEventListener("click", () => {
+                          const showFilterButton =
+                            document.getElementById("showFilter");
+                          showFilterButton.setAttribute("loading", "true"); // Set the button to loading state
+                          showFilterButton.setAttribute("disabled", "true"); // Set the button to disabled state
+                          bufferSize = inputval.value;
+                          updateFilter()
+                            .then(() => {
+                              showFilterButton.removeAttribute("loading"); // Remove the loading state after the operation is complete
+                              showFilterButton.removeAttribute("disabled"); // Remove the disabled state after the operation is complete
+                            })
+                            .catch(() => {
+                              showFilterButton.removeAttribute("loading"); // Remove the loading state in case of an error
+                              showFilterButton.removeAttribute("disabled"); // Remove the disabled state in case of an error
+                            });
+                        });
+                      function bufferVariablesChanged(event) {
+                        bufferSize = inputval.value;
+                        // updateFilter();
+                      }
+
+                      // view.on("click", (event) => {
+                      view.graphics.remove(pointGraphic);
+                      if (view.graphics.includes(bufferGraphic)) {
+                        view.graphics.remove(bufferGraphic);
+                      }
+
+                      // updateFilter()
+                      // set the geometry filter on the visible FeatureLayerView
+                      function updateFilter() {
+                        return new Promise((resolve, reject) => {
+                          updateFilterGeometry();
+
+                          // console.log(filterGeometry, "filterGeometryfilterGeometryfilterGeometry")
+                          featureFilter = {
+                            // autocasts to FeatureFilter
+                            geometry: filterGeometry,
+                            spatialRelationship: "intersects",
+                          };
+
+                          if (featureLayerView) {
+                            featureLayerView.filter = featureFilter;
+                            // console.log(featureFilter, "featureFilter")
+                            // if (featureLayerViewFilterSelected) {
+                            // } else {
+                            //   featureLayerView.filter = null;
+                            // }
+                          } else {
+                            featureLayerView.filter = null;
+                          }
+                          if (sceneLayerView) {
+                            sceneLayerView.filter = featureFilter;
+                            // if (sceneLayerViewFilterSelected) {
+                            // } else {
+                            //   sceneLayerView.filter = null;
+                            // }
+                          } else {
+                            sceneLayerView.filter = null;
+                          }
+                          resolve();
+                        });
+                      }
+
+                      // update the filter geometry depending on bufferSize
+                      let filterGeometry = null;
+                      function updateFilterGeometry() {
+                        // add a polygon graphic for the bufferSize
+                        if (result) {
+                          queryFeatures(result);
+                          sketchVal = result.geometry;
+                          console.log(
+                            sketchVal,
+                            "sketchValsketchValsketchValsketchValsketchVal"
+                          );
+                          if (bufferSize > 0) {
+                            sketchVal = result.geometry.centroid;
+                            const bufferGeometry =
+                              geometryEngine.geodesicBuffer(
+                                result.geometry,
+                                bufferSize,
+                                "meters"
+                              );
+                            if (bufferLayer.graphics.length === 0) {
+                              bufferLayer.add(
+                                new Graphic({
+                                  geometry: bufferGeometry,
+                                  symbol: {
+                                    type: "simple-fill", // autocasts as new SimpleFillSymbol()
+                                    color: [173, 30, 120, 0.5],
+                                    outline: {
+                                      // autocasts as new SimpleLineSymbol()
+                                      color: [255, 100, 155],
+                                      width: 1,
+                                    },
+                                  },
+                                })
+                              );
+                            } else {
+                              bufferLayer.graphics.getItemAt(0).geometry =
+                                bufferGeometry;
+                            }
+                            return (filterGeometry = bufferGeometry);
+                          } else {
+                            bufferLayer.removeAll();
+                            filterGeometry = result.geometry;
+                          }
+                        }
+                      }
+
+                      // document.getElementById("infoDiv").style.display =
+                      //   "block";
+
+                      function queryFeatures(screenPoint) {
+                        let distance = bufferSize;
+                        let units = "meters";
+                        const point = screenPoint.geometry;
+                        // console.log("Query Geometry:", point);
+                        servicesLayer
+                          .queryFeatures({
+                            geometry: point,
+                            // distance and units will be null if basic query selected
+                            distance: distance,
+                            units: units,
+                            spatialRelationship: "intersects",
+                            returnGeometry: true,
+                            returnQueryGeometry: true,
+                            outFields: ["*"],
+                          })
+                          .then((featureSet) => {
+                            // console.log(featureSet, "featureSet");
+                            // set graphic location to mouse pointer and add to mapview
+                            pointGraphic.geometry = point;
+                            // var pointt = point
+                            view.graphics.add(pointGraphic);
+                            // // open popup of query result
+                            // view.openPopup({
+                            //   location: point,
+                            //   features: featureSet.features,
+                            //   featureMenuOpen: true
+                            // });
+
+                            if (featureSet.queryGeometry) {
+                              bufferGraphic.geometry = featureSet.queryGeometry;
+                              view.graphics.add(bufferGraphic);
+                            }
+                            tabulatePlaces(featureSet);
+                          });
+                      }
+
+                      // Investigate the individual PlaceResults from the array of results
+                      // from the PlacesQueryResult and process them
+                      function tabulatePlaces(results) {
+                        // console.log(results, "featureSet");
+                        // console.log(result.geometry, "result.geometry");
+                        resultPanel01.innerHTML = "";
+                        if (infoPanel) infoPanel.remove();
+                        const distances = [];
+                        results.features.forEach((placeResult) => {
+                          const distance = geodesicUtils.geodesicDistance(
+                            new Point({
+                              x: result.geometry.longitude,
+                              y: result.geometry.latitude,
+                            }),
+                            new Point({
+                              x: placeResult.geometry.longitude,
+                              y: placeResult.geometry.latitude,
+                            }),
+                            "kilometers"
+                          );
+                          distances.push({ placeResult, distance });
+                          // addResult(placeResult, distance);
+                        });
+                        // Sort the array based on distance.distance in ascending order
+                        distances.sort((a, b) => a.distance.distance - b.distance.distance);
+                        distances.forEach((item) => {
+                          addResult(item.placeResult, item.distance);
+                        });
+                        // if (distances.length > 0) {
+                        //   animateClosestFeature(distances[0].placeResult);
+                        // }
+                      }
+
+                      // Visualize the places on the map based on category
+                      // and list them on the left panel with more details
+                      async function addResult(place, distance) {
+                        // console.log(distance, "distance")
+                        placePoint01 = [place.attributes.E, place.attributes.N];
+                        // console.log(placePoint01, "placePoint01")
+                        const placePoint = {
+                          type: "point",
+                          y: place.attributes.N,
+                          x: place.attributes.E,
+                        };
+                        // const landmark = new WebStyleSymbol({
+                        //   name: "landmark",
+                        //   styleName: "Esri2DPointSymbolsStyle",
+                        // });
+                        const placeGraphic = new Graphic({
+                          geometry: placePoint,
+                          symbol: {
+                            type: "simple-marker",
+                            color: [255, 255, 255, 0],
+                            outline: {
+                              color: [255, 255, 255, 0],
+                              width: 0,
+                            },
+                          },
+                        });
+
+                        // switch (activeCategory) {
+                        //   case "10000":
+                        //     placeGraphic.symbol = arts;
+                        //     break;
+                        //   case "11000":
+                        //     placeGraphic.symbol = business;
+                        //     break;
+                        //   case "12000":
+                        //     placeGraphic.symbol = community;
+                        //     break;
+                        //   case "13000":
+                        //     placeGraphic.symbol = dining;
+                        //     break;
+                        //   case "15000":
+                        //     placeGraphic.symbol = hospital;
+                        //     break;
+                        //   case "16000":
+                        //     placeGraphic.symbol = landmark;
+                        //     break;
+                        //   case "17000":
+                        //     placeGraphic.symbol = retail;
+                        //     break;
+                        //   case "18000":
+                        //     placeGraphic.symbol = sports;
+                        //     break;
+                        //   case "19000":
+                        //     placeGraphic.symbol = travel;
+                        //     break;
+                        //   default:
+                        //     placeGraphic.symbol = arts;
+                        // }
+
+                        // Add each graphic to the GraphicsLayer
+                        view.graphics.add(placeGraphic);
+                        // // Fetch more details about each place based
+                        // // on the place ID with all possible fields
+                        // const fetchPlaceParameters = new FetchPlaceParameters({
+                        //   apiKey,
+                        //   placeId: place.placeId,
+                        //   requestedFields: ["all"],
+                        // });
+
+                        const infoDiv =
+                          document.createElement("calcite-list-item");
+                        const description = `
+                      ${place.attributes["البلدية"]} - ${Number(
+                          distance.distance.toFixed(2)
+                        )} km`;
+                        // ${Number((place.distance / 1000).toFixed(1))} km`;
+                        infoDiv.label = place.attributes["الخدمة"];
+                        infoDiv.description = description;
+
+                        // If a place in the left panel is clicked
+                        // then open the feature's popup
+                        infoDiv.addEventListener("click", async () => {
+                          view.openPopup({
+                            location: placePoint,
+                            title: place.attributes["البلدية"],
+                            content: "See panel for more details",
+                          });
+
+                          // Highlight the selected place feature
+                          const layerView = await view.whenLayerView(
+                            placesLayer
+                          );
+                          highlightSelect = layerView.highlight(placeGraphic);
+
+                          // Move the view to center on the selected place feature
+                          // view.zoom = 12;
+                          view.center = placePoint01;
+
+                          // Pass the FetchPlaceParameters and the location of the
+                          // selected place feature to the getDetails() function
+                          getDetails(place, placePoint);
+                        });
+                        resultPanel01.appendChild(infoDiv);
+                        return place;
+                      }
+
+                      async function animateClosestFeature(feature) {
+                        const closestFeatureGraphic = new Graphic({
+                          geometry: feature.geometry,
+                          symbol: {
+                            type: "simple-marker",
+                            color: [255, 0, 0, 0.5],
+                            size: "16px",
+                            outline: {
+                              color: [255, 255, 255],
+                              width: 1,
+                            },
+                          },
+                        });
+                        view.graphics.add(closestFeatureGraphic);
+                      }
+
+                      // Get place details and display in the left panel
+                      async function getDetails(place, placePoint) {
+                        // // Get place details
+                        // const result = await places.fetchPlace(fetchPlaceParameters);
+                        // const placeDetails = result.placeDetails;
+                        // Move the view to center on the selected place feature
+                        view.goTo(placePoint);
+
+                        // Set-up panel on the left for more place information
+                        infoPanel = document.createElement("calcite-flow-item");
+                        flow.appendChild(infoPanel);
+                        infoPanel.heading = place.attributes["البلدية"];
+                        infoPanel.description = place.attributes["الخدمة"];
+                        // Pass attributes from each place to the setAttribute() function
+                        setAttribute(
+                          "Description",
+                          "information",
+                          place.description
+                        );
+                        setAttribute(
+                          "Address",
+                          "map-pin",
+                          place.attributes["المنطقة"]
+                        );
+                        setAttribute(
+                          "Phone",
+                          "mobile",
+                          place.attributes["المحافظة"]
+                        );
+                        // setAttribute("Hours", "clock", placeDetails.hours.openingText);
+                        // setAttribute("Rating", "star", placeDetails.rating.user);
+                        // setAttribute("Email", "email-address", placeDetails.contactInfo.email);
+                        // setAttribute(
+                        //   "Facebook",
+                        //   "speech-bubble-social",
+                        //   placeDetails.socialMedia.facebookId ?
+                        //   `www.facebook.com/${placeDetails.socialMedia.facebookId}` :
+                        //   null
+                        // );
+                        // setAttribute(
+                        //   "Twitter",
+                        //   "speech-bubbles",
+                        //   placeDetails.socialMedia.twitter ?
+                        //   `www.twitter.com/${placeDetails.socialMedia.twitter}` :
+                        //   null
+                        // );
+                        // setAttribute(
+                        //   "Instagram",
+                        //   "camera",
+                        //   placeDetails.socialMedia.instagram ?
+                        //   `www.instagram.com/${placeDetails.socialMedia.instagram}` :
+                        //   null
+                        // );
+                        // If another place is clicked in the left panel, then close
+                        // the popup and remove the highlight of the previous feature
+                        infoPanel.addEventListener(
+                          "calciteFlowItemBack",
+                          async () => {
+                            view.closePopup();
+                            highlightSelect.remove();
+                            highlightSelect = null;
+                          }
+                        );
+                      }
+
+                      // // Take each place attribute and display on left panel
+                      // function setAttribute(heading, icon, validValue) {
+                      //   if (validValue) {
+                      //     const element =
+                      //       document.createElement("calcite-block");
+                      //     element.heading = heading;
+                      //     element.description = validValue;
+                      //     const attributeIcon =
+                      //       document.createElement("calcite-icon");
+                      //     attributeIcon.icon = icon;
+                      //     attributeIcon.slot = "icon";
+                      //     attributeIcon.scale = "m";
+                      //     element.appendChild(attributeIcon);
+                      //     infoPanel.appendChild(element);
+                      //   }
+                      // }
+
+                      // Take each place attribute and display on left panel
+                      function setAttribute(heading, icon, validValue) {
+                        if (validValue) {
+                          const element =
+                            document.createElement("calcite-block");
+                          element.heading = heading;
+                          element.description = validValue;
+                          const attributeIcon =
+                            document.createElement("calcite-action");
+                          attributeIcon.icon = "layer";
+                          attributeIcon.slot = "actions-end";
+                          attributeIcon.scale = "m";
+                          element.appendChild(attributeIcon);
+                          infoPanel.appendChild(element);
+                        }
+                      }
+
+                      // });
+                    })
+                    .catch((error) => {
+                      if (error.name != "AbortError") {
+                        console.error(error);
+                      }
+                    });
+                }
+              }
+
+              // ************************************************************************
+              // User clicked on the page number on the calcite-pagination
+              // set up the query page and fetch the features from the service corresponding
+              // to the page number
+              // ************************************************************************
+              document
+                .getElementById("tablePager")
+                .addEventListener("calcitePaginationChange", (event) => {
+                  let page;
+                  if (event.target.startItem === 1) {
+                    page = 0;
+                  } else {
+                    page = event.target.startItem;
+                  }
+                  queryPage(page);
+
+                  // set up the view for the new results
+                  view.zoom = 8;
+                  view.center = [42.83777007050006, 18.914984955772834];
+                  if (view.popup.visible) {
+                    view.popup.visible = false;
+                  }
+                });
+
+              const resultPanel = document.getElementById("result-panel");
+              const toggleButton = document.getElementById("toggle-button");
+              const toggleButtonServices = document.getElementById(
+                "toggleService-button"
+              );
+              view.ui.add(toggleButton, "top-left");
+              view.ui.add(toggleButtonServices, "top-left");
+
+              toggleButton.addEventListener("click", function () {
+                if (resultPanel.clientWidth == 390) {
+                  resultPanel.style.width = "0px";
+                  tablePager.style.width = "0px";
+                  toggleButton.icon = "chevrons-right";
+                  toggleButton.title = "افتح قائمة الظاهرات";
+                } else {
+                  resultPanel.style.width = "390px";
+                  tablePager.style.width = "390px";
+                  toggleButton.icon = "chevrons-left";
+                  toggleButton.title = "اغلق قائمة الظاهرات";
+                }
+              });
+            });
+          } else if (layer.title === "الخدمات") {
+            servicesLayer = layer;
+            layer.renderer = rendererServices;
+            layer.popupTemplate = servicesTemplate;
+
+            view.whenLayerView(layer).then(function (layerView) {
+              sceneLayerView = layerView;
+              // view.goTo(
+              //   {
+              //     target: layer.fullExtent,
+              //   },
+              //   {
+              //     duration: 2000,
+              //   }
+              // );
+            });
+            // layer.visible = false;
+          }
+          // else if (layer.title === "الجامعات") {
+          //   layer.renderer = rendererUniversty
+          //   layer.visible = false;
+          // } else if (layer.title === "المدارس") {
+          //   layer.renderer = rendererSchools
+          //   layer.visible = false;
+          // }
+        });
+      }
+    });
+
+    // view.on("click", function (event) {
+    //   view.hitTest(event).then(function (response) {
+    //     if (response.results.length) {
+    //       let graphic = response.results.filter(function (result) {
+    //           for (const layerName of featureLayers) {
+    //             if (result.graphic.layer === layerName) {
+    //               return (
+    //                 result.graphic.layer === layerName
+    //               );
+    //             }
+    //           }
+    //       })[0].graphic;
+    //       view.goTo(
+    //         {
+    //           target: graphic,
+    //         },
+    //         {
+    //           duration: 2000,
+    //         }
+    //       );
+    //     }
+    //   });
+    // });
 
     await view.when();
-
-    //add widgets
-    addWidgetsNew()
-      .then(([view, displayMap]) => {
-        console.log(
-          "Widgets Returned From Require Scope",
-          view,
-          displayMap,
-          featureLayer
-        );
-        // You can work with the view object here
-
-        //Show Attributes
-        showAttributes()
-          .then(([view, displayMap]) => {
-            // console.log("Widgets Returned From Require Scope", view, displayMap, featureLayer);
-            // You can work with the view object here
-          })
-          .catch((error) => {
-            // Handle any errors here
-          });
-
-        // clickToDownloadScreenshot();
-      })
-      .catch((error) => {
-        // Handle any errors here
-      });
-
-    //create layers
-    createLayers(geojsons, randomGeoJSON)
-      .then(([view, displayMap, geoJSONarr]) => {
-        // console.log("featureLayers Returned From Require Scope", featureLayer);
-        // You can work with the view object here
-      })
-      .catch((error) => {
-        // Handle any errors here
-      });
-
-    return [view, displayMap, gL]; // You can return the view object
-  } catch (error) {
-    console.error("Error initializing map:", error);
-    throw error; // Rethrow the error to handle it further, if needed
-  }
-}
-
-async function addWidgetsNew() {
-  try {
-    // await initializeMap();
-
-    const [
-      Fullscreen,
-      BasemapGallery,
-      Expand,
-      ScaleBar,
-      AreaMeasurement2D,
-      Search,
-      Home,
-      LayerList,
-    ] = await Promise.all([
-      loadModule("esri/widgets/Fullscreen"),
-      loadModule("esri/widgets/BasemapGallery"),
-      loadModule("esri/widgets/Expand"),
-      loadModule("esri/widgets/ScaleBar"),
-      loadModule("esri/widgets/AreaMeasurement2D"),
-      loadModule("esri/widgets/Search"),
-      loadModule("esri/widgets/Home"),
-      loadModule("esri/widgets/LayerList"),
-    ]);
-
-    // var fullscreen = new Fullscreen({
-    //   view: view,
-    // });
-    // view.ui.add(fullscreen, "top-right");
-
-    var basemapGallery = new BasemapGallery({
-      view: view,
-    });
-
-    var Expand22 = new Expand({
-      view: view,
-      content: basemapGallery,
-      expandIcon: "basemap",
-      group: "top-right",
-      // expanded: false,
-      expandTooltip: "Ù…Ø¹Ø±Ø¶ Ø®Ø±ÙŠØ·Ø© Ø§Ù„Ø£Ø³Ø§Ø³",
-      collapseTooltip: "Ø§ØºÙ„Ø§Ù‚",
-    });
-    view.ui.add([Expand22], { position: "top-right", index: 6 });
-
-    var scalebar = new ScaleBar({
-      view: view,
-      unit: "metric",
-    });
-    view.ui.add(scalebar, "bottom-right");
-
-    // var measurementWidget = new AreaMeasurement2D({
-    //   view: view,
-    // });
-    // // view.ui.add(measurementWidget, "top-left")
-
-    // var Expand4 = new Expand({
-    //   view: view,
-    //   content: measurementWidget,
-    //   expandIcon: "measure",
-    //   group: "top-right",
-    //   // expanded: false,
-    //   expandTooltip: "Expand to Measure",
-    //   collapseTooltip: "Close Measure",
-    // });
-    var search = new Search({
-      //Add Search widget
-      view: view,
-    });
-    view.ui.add(search, { position: "top-left", index: 0 }); //Add to the map
-
-    var homeWidget = new Home({
-      view: view,
-    });
-    view.ui.add(homeWidget, "top-left");
-
-    var layerList = new LayerList({
-      view: view,
-      listItemCreatedFunction: function (event) {
-        var item = event.item;
-        // displays the legend for each layer list item
-        item.panel = {
-          content: "legend",
-        };
-      },
-      showLegend: true,
-    });
-
-    layerList.visibilityAppearance = "checkbox";
-
-    var Expand5 = new Expand({
-      view: view,
-      content: layerList,
-      expandIcon: "layers",
-      group: "top-right",
-      // expanded: false,
-      expandTooltip: "Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ø·Ø¨Ù‚Ø§Øª",
-      collapseTooltip: "Ø§ØºÙ„Ø§Ù‚",
-    });
-
-    view.ui.add([Expand5], { position: "top-left", index: 6 });
-    // view.ui.add([Expand4], { position: "top-left", index: 3 });
-
-    // let map2 = document.getElementById("map-content");
-    // view.ui.add(map2, "top-right");
-
-    // view.ui.add("controlsWidget", "top-right");
-    view.ui.add(["plans"], "top-right");
-    view.ui.add(["plans2"], "top-right");
-    view.ui.add(["plans3"], "top-right");
-    view.ui.add(["plans4"], "top-right");
-    view.ui.add(["plans5"], "top-right");
-    view.ui.add(["plans6"], "top-right");
-    // view.ui.add("dataContainer", "top-right");
-    // view.ui.add("info", "top-right");
-
-    await view.when();
-
-    return [view, displayMap]; // You can return the view object
-  } catch (error) {
-    console.error("Error initializing map:", error);
-    throw error; // Rethrow the error to handle it further, if needed
-  }
-}
-
-async function createLayers(geojsons, randomGeoJSON) {
-  try {
-    const [
-      GeoJSONLayer,
-      FeatureLayer,
-      Query,
-      reactiveUtils,
-      Legend,
-      FeatureTable,
-    ] = await Promise.all([
-      loadModule("esri/layers/GeoJSONLayer"),
-      loadModule("esri/layers/FeatureLayer"),
-      loadModule("esri/rest/support/Query"),
-      loadModule("esri/core/reactiveUtils"),
-      loadModule("esri/widgets/Legend"),
-      loadModule("esri/widgets/FeatureTable"),
-    ]);
-
-    const region7 = {
-      type: "simple-fill", // autocasts as new SimpleFillSymbol()
-      color: "#127aa0",
-      style: "solid",
-      outline: {
-        width: 0.2,
-        color: [255, 255, 255, 0.5],
-      },
-    };
-
-    const region6 = {
-      type: "simple-fill", // autocasts as new SimpleFillSymbol()
-      color: "#7f89a1",
-      style: "solid",
-      outline: {
-        width: 0.2,
-        color: [255, 255, 255, 0.5],
-      },
-    };
-
-    const region5 = {
-      type: "simple-fill", // autocasts as new SimpleFillSymbol()
-      color: "#99977F",
-      style: "solid",
-      outline: {
-        width: 0.2,
-        color: [255, 255, 255, 0.5],
-      },
-    };
-
-    const region4 = {
-      type: "simple-fill", // autocasts as new SimpleFillSymbol()
-      color: "#fffcd4",
-      style: "solid",
-      outline: {
-        width: 0.2,
-        color: [255, 255, 255, 0.5],
-      },
-    };
-
-    const region3 = {
-      type: "simple-fill", // autocasts as new SimpleFillSymbol()
-      color: "#b1cdc2",
-      style: "solid",
-      outline: {
-        width: 0.2,
-        color: [255, 255, 255, 0.5],
-      },
-    };
-
-    const region2 = {
-      type: "simple-fill", // autocasts as new SimpleFillSymbol()
-      color: "#38627a",
-      style: "solid",
-      outline: {
-        width: 0.2,
-        color: [255, 255, 255, 0.5],
-      },
-    };
-
-    const region1 = {
-      type: "simple-fill", // autocasts as new SimpleFillSymbol()
-      color: "#0d2644",
-      style: "solid",
-      outline: {
-        width: 0.2,
-        color: [255, 255, 255, 0.5],
-      },
-    };
-
-    const renderer = {
-      type: "unique-value", // autocasts as new ClassBreaksRenderer()
-      field: "Ø¥Ø³ØªØ®Ø¯Ø§Ù…_Ø§Ù„Ø£Ø±Ø¶",
-      // normalizationField: "EDUCBASECY",
-      legendOptions: {
-        title: "ØªØµÙ†ÙŠÙ Ø§Ù„Ù…Ø®Ø·Ø· ØªØ¨Ø¹Ø§ Ù„Ø§Ø³ØªØ®Ø¯Ø§Ù… Ø§Ù„Ø£Ø±Ø¶",
-      },
-      // defaultSymbol: {
-      //   type: "simple-fill", // autocasts as new SimpleFillSymbol()
-      //   color: "#38689a",
-      //   style: "solid",
-      //   outline: {
-      //     width: 0.2,
-      //     color: [255, 255, 255, 0.5],
-      //   },
-      // },
-      // defaultLabel: "Ù„Ø§ ÙŠÙˆØ¬Ø¯",
-      uniqueValueInfos: [
-        {
-          value: "Ø³ÙƒÙ†ÙŠ",
-          symbol: region1,
-          label: "Ø³ÙƒÙ†ÙŠ",
-        },
-        {
-          value: "Ø¯ÙŠÙ†ÙŠ",
-          symbol: region2,
-          label: "Ø¯ÙŠÙ†ÙŠ",
-        },
-        {
-          value: "ØªØ¬Ø§Ø±ÙŠ",
-          symbol: region3,
-          label: "ØªØ¬Ø§Ø±ÙŠ",
-        },
-        {
-          value: "Ø­ÙƒÙˆÙ…ÙŠ",
-          symbol: region4,
-          label: "Ø­ÙƒÙˆÙ…ÙŠ",
-        },
-        {
-          value: "ØªØ¹Ù„ÙŠÙ…ÙŠ",
-          symbol: region5,
-          label: "ØªØ¹Ù„ÙŠÙ…ÙŠ",
-        },
-        {
-          value: "Ø§Ø³ØªØ«Ù…Ø§Ø±ÙŠ",
-          symbol: region6,
-          label: "Ø§Ø³ØªØ«Ù…Ø§Ø±ÙŠ",
-        },
-        {
-          value: "Ù…Ø±Ø§ÙÙ‚ Ø¹Ø§Ù…Ø©",
-          symbol: region7,
-          label: "Ù…Ø±Ø§ÙÙ‚ Ø¹Ø§Ù…Ø©",
-        },
-      ],
-    };
 
     let legend = new Legend({
       view: view,
@@ -409,332 +1047,139 @@ async function createLayers(geojsons, randomGeoJSON) {
     legend.hideLayersNotInCurrentView = true;
     view.ui.add(legend, "bottom-left");
 
-    async function createFeatureLayers(geojsons) {
-      const arrayFeatures = [];
-      for (const geojsonURL of geojsons) {
-        const parsedUrl = new URL(geojsonURL);
-        const pathname = parsedUrl.pathname;
-        const pathParts = pathname.split("/");
-        const filenameWithExtension = pathParts[pathParts.length - 1];
-        const title = filenameWithExtension.split(".")[0];
+    // view.whenLayerView(KansasCityBoundaries).then(function (layerView) {
+    //   view.goTo(
+    //     {
+    //       target: KansasCityBoundaries.fullExtent,
+    //     },
+    //     {
+    //       duration: 2000,
+    //     }
+    //   );
+    // });
 
-        const geojsonLayer = new GeoJSONLayer({
-          url: geojsonURL,
-          title: title,
-        });
-        await geojsonLayer.queryFeatures().then(function (results) {
-          console.log(results);
-          const featureLayer = new FeatureLayer({
-            source: results.features,
-            outFields: ["*"],
-            fields: results.fields,
-            objectIdField: results.fields[0].name,
-            geometryType: results.geometryType,
-            title: geojsonLayer.title,
-            renderer: renderer,
-          });
-
-          // Typical usage for the FeatureTable widget. This will recognize all fields in the layer if none are set.
-          const featureTable = new FeatureTable({
-            view: view, // The view property must be set for the select/highlight to work
-            layer: featureLayer,
-            visibleElements: {
-              header: true,
-              menu: true,
-              // Autocast to VisibleElements
-              menuItems: {
-                clearSelection: true,
-                refreshData: true,
-                toggleColumns: true,
-                selectedRecordsShowAllToggle: true,
-                selectedRecordsShowSelectedToggle: true,
-                zoomToSelection: true,
-              },
-              selectionColumn: true,
-              columnMenus: true,
-            },
-            container: document.getElementById("tableDiv"),
-          });
-
-          arrayFeatures.push(featureLayer);
-        });
-        featureLayers = arrayFeatures;
-      }
-      return featureLayers;
-    }
-
-    const selectElement = document.getElementById("comparison-operator");
-    // Define comparison operators
-    const operators = [
-      "Ø£ÙƒØ¨Ø± Ù…Ù†",
-      "Ø£ØµØºØ± Ù…Ù†",
-
-      "ÙŠØ³Ø§ÙˆÙŠ",
-      "Ø£ÙƒØ¨Ø± Ù…Ù† Ø§Ùˆ ÙŠØ³Ø§ÙˆÙŠ",
-      "Ø£ØµØºØ±Â Ù…Ù†Â Ø§ÙˆÂ ÙŠØ³Ø§ÙˆÙŠ",
-    ];
-
-    // Loop through operators and create options
-    operators.forEach((operator) => {
-      const option = document.createElement("option");
-      option.value = operator;
-      option.text = operator;
-      selectElement.appendChild(option);
-    });
-
-    function isNumberKey(evt) {
-      var charCode = evt.which ? evt.which : evt.keyCode;
-      if (charCode > 31 && (charCode < 48 || charCode > 57)) {
-        return false;
-      }
-      return true;
-    }
-
-    let query = new Query();
-    await createFeatureLayers(geojsons).then((featureLayers) => {
-      console.log(featureLayers);
-      var planss = [];
-      for (let i = 0; i < featureLayers.length; i++) {
-        if (!planss.includes(featureLayers[i].title)) {
-          planss.push(featureLayers[i].title);
-          var opt = document.createElement("option");
-          opt.value = featureLayers[i].title;
-          opt.textContent = featureLayers[i].title;
-          planselect.appendChild(opt);
-        }
-      }
-
-      if (geojsons.length === 1) {
-        if (featureLayers) {
-          featureLayers.map((layer) => {
-            if (layer.title === randomGeoJSON) {
-              displayMap.add(layer);
-              view.whenLayerView(layer).then(() => {
-                view.goTo(
-                  {
-                    target: layer.fullExtent,
-                  },
-                  {
-                    duration: 3000,
-                    speedFactor: 0.8,
-                    easing: "in-out-coast-quadratic",
-                  }
-                );
-              });
-            }
-          });
-        }
-      } else {
-        if (featureLayers) {
-          featureLayers.map((layer) => {
-            displayMap.add(layer);
-          });
-
-          const getAllLayerViews = view.map.allLayers.map((layer) =>
-            view.whenLayerView(layer)
-          );
-          const layerViews = Promise.all(getAllLayerViews).then(() => {
-            var combinedExtent = null;
-            displayMap.layers.forEach(function (layer) {
-              if (layer.visible) {
-                var layerExtent = layer.fullExtent || layer.initialExtent;
-                if (layerExtent) {
-                  if (combinedExtent) {
-                    combinedExtent = combinedExtent.union(layerExtent);
-                  } else {
-                    combinedExtent = layerExtent.clone();
-                  }
-                }
-              }
-            });
-
-            if (combinedExtent) {
-              view.goTo(
-                {
-                  target: combinedExtent,
-                },
-                {
-                  duration: 3000,
-                  speedFactor: 0.8,
-                  easing: "in-out-coast-quadratic",
-                }
-              );
-            }
-          });
-        }
-      }
-    });
-
-    planselect.addEventListener("change", function () {
-      view.on("click", function (event) {
-        view.hitTest(event).then(function (response) {
-          if (response.results.length) {
-            let graphic = response.results.filter(function (result) {
-              for (const layerName of featureLayers) {
-                if (result.graphic.layer === layerName) {
-                  return result.graphic.layer === layerName;
-                }
-              }
-            })[0].graphic;
-            view.goTo(
-              {
-                target: graphic,
-              },
-              {
-                duration: 2500,
-              }
-            );
-          }
-        });
+    //add widgets
+    addWidgets()
+      .then(([view, displayMap]) => {
+        console.log(
+          "Widgets Returned From Require Scope",
+          view,
+          displayMap,
+          featureLayer
+        );
+        // You can work with the view object here
+      })
+      .catch((error) => {
+        // Handle any errors here
       });
 
-      if (this.value == "all") {
-        displayMap.removeAll();
-        featureLayers.map((layer) => {
-          displayMap.add(layer);
-        });
+    return [view, displayMap]; // You can return the view object
+  } catch (error) {
+    console.error("Error initializing map:", error);
+    throw error; // Rethrow the error to handle it further, if needed
+  }
+}
 
-        var combinedExtent = null;
-        displayMap.layers.forEach(function (layer) {
-          if (layer.visible) {
-            var layerExtent = layer.fullExtent || layer.initialExtent;
-            if (layerExtent) {
-              if (combinedExtent) {
-                combinedExtent = combinedExtent.union(layerExtent);
-              } else {
-                combinedExtent = layerExtent.clone();
-              }
-            }
-          }
-        });
+// calling
+initializeMapNewService()
+  .then(() => {
+    console.log("Map Returned From Require Scope", displayMap, view);
+    // You can work with the view object here
+  })
+  .catch((error) => {
+    // Handle any errors here
+  });
 
-        // function customEasing(t) {
-        //   return 1 - Math.abs(Math.sin(-1.7 + t * 4.5 * Math.PI)) * Math.pow(0.5, t * 10);
-        // }
+async function addWidgets() {
+  try {
+    // await initializeMap();
+    const [
+      Fullscreen,
+      BasemapGallery,
+      Expand,
+      ScaleBar,
+      Measurement,
+      Search,
+      Home,
+      LayerList,
+    ] = await Promise.all([
+      loadModule("esri/widgets/Fullscreen"),
+      loadModule("esri/widgets/BasemapGallery"),
+      loadModule("esri/widgets/Expand"),
+      loadModule("esri/widgets/ScaleBar"),
+      loadModule("esri/widgets/Measurement"),
+      loadModule("esri/widgets/Search"),
+      loadModule("esri/widgets/Home"),
+      loadModule("esri/widgets/LayerList"),
+    ]);
 
-        // Check if a combined extent is calculated
-        if (combinedExtent) {
-          // Call the goTo function to zoom to the combined extent
-          view.goTo(
-            {
-              target: combinedExtent,
-            },
-            {
-              duration: 3000,
-              speedFactor: 0.8,
-              easing: "in-out-coast-quadratic",
-            }
-          );
-        }
-      } else {
-        planselect2.style.display = "block";
-        var plansss = [];
-        var plansss3 = [];
-        for (let i = 0; i < featureLayers.length; i++) {
-          if (featureLayers[i].title === this.value) {
-            displayMap.addMany([featureLayers[i]]);
-            view.whenLayerView(featureLayers[i]).then((layerView) => {
-              view.goTo(
-                {
-                  target: featureLayers[i].fullExtent,
-                },
-                {
-                  duration: 3000,
-                  speedFactor: 0.3,
-                  easing: "in-out-coast-quadratic",
-                }
-              );
-            });
-
-            // select 2
-            while (planselect2.firstChild) {
-              planselect2.removeChild(planselect2.firstChild);
-            }
-            for (let f = 0; f < featureLayers[i].fields.length; f++) {
-              if (!plansss.includes(featureLayers[i].fields[f].name)) {
-                plansss.push(featureLayers[i].fields[f].name);
-                var opt2 = document.createElement("option");
-                opt2.value = featureLayers[i].fields[f].name;
-                opt2.textContent = featureLayers[i].fields[f].name;
-                planselect2.appendChild(opt2);
-              }
-            }
-
-            planselect2.addEventListener("change", function () {
-              planselect3.style.display = "block";
-              // select 3
-              // alert(this.value)
-              var val = this.value;
-              while (planselect3.firstChild) {
-                planselect3.removeChild(planselect3.firstChild);
-              }
-              for (let t = 0; t < featureLayers[i].source.items.length; t++) {
-                Object.keys(
-                  featureLayers[i].source.items[t].attributes
-                ).forEach((key) => {
-                  // console.log(`${key}: ${featureLayers[i].source.items[t].attributes[key]}`);
-                  if (key === this.value) {
-                    if (
-                      !plansss3.includes(
-                        featureLayers[i].source.items[t].attributes[key]
-                      )
-                    ) {
-                      if (
-                        isNaN(featureLayers[i].source.items[t].attributes[key])
-                      ) {
-                        plansss3.push(
-                          featureLayers[i].source.items[t].attributes[key]
-                        );
-                        var opt3 = document.createElement("option");
-                        opt3.value =
-                          featureLayers[i].source.items[t].attributes[key];
-                        opt3.textContent =
-                          featureLayers[i].source.items[t].attributes[key];
-                        planselect3.appendChild(opt3);
-                      } else {
-                        // display comparisonOperators select
-                        planselect3.style.display = "none";
-                        comparisonOperators.style.display = "block";
-                        inputVal.style.display = "block";
-                        buttonQuery.style.display = "block";
-
-                        comparisonOperators.addEventListener(
-                          "change",
-                          function () {
-                            var operators = this.value;
-                            var inputreturnedVal =
-                              document.getElementById("inputt").value;
-                            if (inputreturnedVal) {
-                              buttonQuery.addEventListener(
-                                "click",
-                                function () {
-                                  featureLayers[i].definitionExpression =
-                                    val +
-                                    " " +
-                                    operators +
-                                    " '" +
-                                    inputreturnedVal +
-                                    "'";
-                                }
-                              );
-                            }
-                          }
-                        );
-                      }
-                    }
-                  }
-                });
-              }
-              console.log(this.value, "this.value");
-              planselect3.addEventListener("change", function () {
-                featureLayers[i].definitionExpression =
-                  val + " = '" + this.value + "'";
-              });
-            });
-          }
-        }
-      }
+    var basemapGallery = new BasemapGallery({
+      view: view,
     });
+
+    var Expand22 = new Expand({
+      view: view,
+      content: basemapGallery,
+      expandIcon: "basemap",
+      group: "top-right",
+      // expanded: false,
+      expandTooltip: "Open Basmap Gallery",
+      collapseTooltip: "Close",
+    });
+    view.ui.add([Expand22], { position: "top-right", index: 6 });
+
+    var fullscreen = new Fullscreen({
+      view: view,
+    });
+    view.ui.add(fullscreen, "top-right");
+
+    var scalebar = new ScaleBar({
+      view: view,
+      unit: "metric",
+    });
+    view.ui.add(scalebar, "bottom-right");
+
+    var search = new Search({
+      //Add Search widget
+      view: view,
+    });
+    view.ui.add(search, { position: "top-left", index: 0 }); //Add to the map
+
+    var homeWidget = new Home({
+      view: view,
+    });
+    view.ui.add(homeWidget, "top-left");
+
+    var layerList = new LayerList({
+      view: view,
+      listItemCreatedFunction: function (event) {
+        var item = event.item;
+        // displays the legend for each layer list item
+        item.panel = {
+          content: "legend",
+        };
+      },
+      showLegend: true,
+    });
+
+    // const measurement = new Measurement({
+    //   view: view,
+    //   activeTool: "distance"
+    // });
+    // view.ui.add(measurement, "top-right");
+    
+    layerList.visibilityAppearance = "checkbox";
+    var Expand5 = new Expand({
+      view: view,
+      content: layerList,
+      expandIcon: "layers",
+      group: "top-right",
+      // expanded: false,
+      expandTooltip: "قائمة الطبقات",
+      collapseTooltip: "اغلاق",
+    });
+
+    view.ui.add([Expand5], { position: "top-left", index: 6 });
 
     await view.when();
 
