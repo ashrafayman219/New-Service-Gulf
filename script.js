@@ -1,3 +1,20 @@
+    Promise.all([
+      view.when(),
+      // view.map.when(),
+      ...view.map.allLayers.map(layer => layer.when()),
+      layerList.when()
+    ]).then(() => {
+      console.log("Everything is loaded: view, map, layers, layerList");
+      var preloader = document.getElementById('preloader');
+      if (preloader) {
+        preloader.style.display = 'none';
+      }
+    });
+
+
+
+
+
 // display variables
 var displayMap;
 let view;
